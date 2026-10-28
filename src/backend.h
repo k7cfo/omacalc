@@ -61,7 +61,8 @@ private:
     QString currentValue() const;
     void beginEditingAfterResult();
     void clearEvaluation();
-    static QString prettyExpression(const QStringList &tokens);
+    QString prettyExpression(const QStringList &tokens) const;
+    QString groupNumber(QString number) const;
     void loadOmarchyTheme();
     void watchOmarchyTheme();
     void discardSavedWindowGeometry();
@@ -73,6 +74,7 @@ private:
     QString m_evaluatedExpression;
     bool m_justEvaluated = false;
     bool m_errored = false;
+    bool m_thousandsSeparators = false;
 
     bool m_darkMode = true;
     qreal m_textScale = 1.0;

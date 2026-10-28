@@ -29,6 +29,85 @@ private slots:
                            m_settingsDirectory.path());
     }
 
+    void init() {
+        QSettings().clear();
+    }
+
+    void configuredSeparators_data() {
+        QTest::addColumn<bool>("enabled");
+        QTest::addColumn<QString>("keys");
+        QTest::addColumn<QString>("display");
+        QTest::addColumn<QString>("expression");
+
+        QTest::newRow("disabled") << false << "1 2 3 4 + 1 ="
+            << "1235" << "1234 + 1";
+        QTest::newRow("below-boundary") << true << "9 9 9" << "999" << "";
+        QTest::newRow("boundary") << true << "1 0 0 0" << "1,000" << "";
+        QTest::newRow("fraction-entry") << true << "1 2 3 4 5 6 7 . 8 9 0"
+            << "1,234,567.890" << "";
+        QTest::newRow("decimal-entry") << true << "1 2 3 4 ." << "1,234." << "";
+        QTest::newRow("negative-entry") << true << "1 2 3 4 sign"
+            << "-1,234" << "";
+        QTest::newRow("pending-operator") << true << "1 2 3 4 +"
+            << "1,234" << "1,234 +";
+        QTest::newRow("result") << true << "9 9 9 + 1 ="
+            << "1,000" << "999 + 1";
+        QTest::newRow("chained-result") << true << "9 9 9 + 1 = × 2 ="
+            << "2,000" << "1,000 × 2";
+        QTest::newRow("edit-result") << true << "9 9 9 + 1 = backspace"
+            << "100" << "";
+        QTest::newRow("edit-boundary") << true << "1 0 0 0 backspace"
+            << "100" << "";
+        QTest::newRow("sign-result") << true << "9 9 9 + 1 = sign"
+            << "-1,000" << "";
+        QTest::newRow("percent") << true << "1 0 0 0 + 1 0 % ="
+            << "1,100" << "1,000 + 100";
+        QTest::newRow("small-fraction") << true << ". 0 0 1 2 3 4"
+            << "0.001234" << "";
+        QTest::newRow("scientific") << true << "1 0 ^ 1 5 ="
+            << "1e+15" << "10 ^ 15";
+        QTest::newRow("full-precision") << true
+            << "1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 ="
+            << "123,456,789,012,345" << "123,456,789,012,345";
+        QTest::newRow("error") << true << "1 0 0 0 ÷ 0 ="
+            << "Error" << "1,000 ÷ 0";
+    }
+
+    void configuredSeparators() {
+        QFETCH(bool, enabled);
+        QFETCH(QString, keys);
+        QFETCH(QString, display);
+        QFETCH(QString, expression);
+        QSettings settings;
+        settings.setValue(QStringLiteral("display/thousandsSeparators"), enabled);
+        settings.sync();
+
+        Backend calculator;
+        press(calculator, keys);
+        QCOMPARE(calculator.display(), display);
+        QCOMPARE(calculator.expression(), expression);
+    }
+
+    void groupedClipboardRoundTrip() {
+        QSettings().setValue(QStringLiteral("display/thousandsSeparators"), true);
+        Backend calculator;
+        press(calculator, "1 2 3 4 . 5 + 1 =");
+        calculator.copyResult();
+        QCOMPARE(QGuiApplication::clipboard()->text(), QStringLiteral("1235.5"));
+
+        press(calculator, "clear");
+        calculator.pasteNumber();
+        QCOMPARE(calculator.display(), QStringLiteral("1,235.5"));
+        press(calculator, "× 2 =");
+        QCOMPARE(calculator.display(), QStringLiteral("2,471"));
+
+        QGuiApplication::clipboard()->setText(QStringLiteral("-1,234,567.89"));
+        calculator.pasteNumber();
+        QCOMPARE(calculator.display(), QStringLiteral("-1,234,567.89"));
+        press(calculator, "+ 1 =");
+        QCOMPARE(calculator.display(), QStringLiteral("-1,234,566.89"));
+    }
+
     void startsAtZero() {
         Backend calculator;
         QCOMPARE(calculator.display(), QStringLiteral("0"));

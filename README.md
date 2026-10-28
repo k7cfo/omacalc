@@ -37,6 +37,23 @@ Colors follow the current Omarchy theme (`~/.local/state/omarchy/current/theme/c
 and re-tint live when the theme changes. Text follows the desktop text size —
 `omarchy display text size`, or GNOME's `text-scaling-factor`.
 
+### Thousands separators
+
+To group digits with commas (`1,234,567.89`), add this to
+`~/.config/Omacom/omacalc.conf` (or `$XDG_CONFIG_HOME/Omacom/omacalc.conf`
+when `XDG_CONFIG_HOME` is set):
+
+```ini
+[display]
+thousandsSeparators=true
+```
+
+Restart Omacalc after changing the file. The option defaults to `false`.
+Grouping applies to the entry, result, and expression; it preserves decimal
+digits while typing and leaves scientific notation unchanged. Calculations and
+editing use ungrouped numbers internally, and copying still produces an
+ungrouped number for pasting into other applications.
+
 ## Requirements
 
 - Qt 6: `qt6-base`, `qt6-declarative`

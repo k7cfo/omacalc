@@ -64,6 +64,8 @@ Backend::Backend(QObject *parent) : QObject(parent) {
     // was the tiled or maximized rectangle, and the maximized flag was set for
     // a normal window, so the next launch filled the screen. Drop both keys.
     discardSavedWindowGeometry();
+    m_thousandsSeparators = QSettings().value(
+        QStringLiteral("display/thousandsSeparators"), false).toBool();
     loadOmarchyTheme();
     watchOmarchyTheme();
     connect(&m_themeWatcher, &QFileSystemWatcher::fileChanged, this, [this]() {
@@ -86,21 +88,33 @@ QString Backend::display() const {
     if (m_errored)
         return QStringLiteral("Error");
     if (!m_entry.isEmpty())
-        return m_entry;
+        return groupNumber(m_entry);
     if (m_justEvaluated)
-        return m_result;
-    return formatNumber(QLocale::c().toDouble(currentValue()));
+        return groupNumber(m_result);
+    return groupNumber(formatNumber(QLocale::c().toDouble(currentValue())));
 }
 
 // Operand tokens carry full round-trip precision when they come from a chained
 // result; present every number at display precision instead.
-QString Backend::prettyExpression(const QStringList &tokens) {
+QString Backend::prettyExpression(const QStringList &tokens) const {
     QStringList pretty;
     pretty.reserve(tokens.size());
     for (const QString &token : tokens)
         pretty << (isOperator(token) ? token
-                                     : formatNumber(QLocale::c().toDouble(token)));
+                                     : groupNumber(formatNumber(QLocale::c().toDouble(token))));
     return pretty.join(QLatin1Char(' '));
+}
+
+QString Backend::groupNumber(QString number) const {
+    if (!m_thousandsSeparators || number.contains(QLatin1Char('e'), Qt::CaseInsensitive))
+        return number;
+
+    const qsizetype decimal = number.indexOf(QLatin1Char('.'));
+    const qsizetype integerEnd = decimal < 0 ? number.size() : decimal;
+    const qsizetype start = number.startsWith(QLatin1Char('-')) ? 1 : 0;
+    for (qsizetype position = integerEnd - 3; position > start; position -= 3)
+        number.insert(position, QLatin1Char(','));
+    return number;
 }
 
 // The number the calculator is "at" right now: the entry being typed, or the
@@ -419,7 +433,7 @@ QString Backend::formatNumber(double value) {
 
 void Backend::copyResult() const {
     if (QClipboard *clipboard = QGuiApplication::clipboard())
-        clipboard->setText(display());
+        clipboard->setText(display().remove(QLatin1Char(',')));
 }
 
 // Paste replaces the current entry when the clipboard holds a number,
